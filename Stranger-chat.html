@@ -1,0 +1,74 @@
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const path = require('path');
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+io.on('connection', (socket) => {
+    console.log('A user connected');
+
+    socket.on('chatMessage', (msg) => {
+        io.emit('message', msg);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('A user disconnected');
+    });
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// HTML, CSS, and JavaScript included inside Express
+app.get('/', (req, res) => {
+    res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Global Chat</title>
+        <style>
+            body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f4f4; }
+            #chat-container { width: 300px; margin: 50px auto; background: white; padding: 10px; border-radius: 8px;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+            #chat-box { height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 5px; background: #fff; }
+            input { width: 70%; padding: 5px; }
+            button { width: 25%; padding: 5px; background-color: #28a745; color: white; border: none; cursor: pointer; }
+        </style>
+    </head>
+    <body>
+        <div id="chat-container">
+            <div id="chat-box"></div>
+            <input type="text" id="message" placeholder="Type a message..." />
+            <button onclick="sendMessage()">Send</button>
+        </div>
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+            const socket = io();
+
+            function sendMessage() {
+                const message = document.getElementById('message').value;
+                if (message.trim() !== "") {
+                    socket.emit('chatMessage', message);
+                    document.getElementById('message').value = "";
+                }
+            }
+
+            socket.on('message', (msg) => {
+                const chatBox = document.getElementById('chat-box');
+                const messageElement = document.createElement('p');
+                messageElement.innerText = msg;
+                chatBox.appendChild(messageElement);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            });
+        </script>
+    </body>
+    </html>
+    `);
+});
